@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/lib/db';
-import { Expense } from '@/lib/models/Expense';
+import { Expense, type ExpenseDoc } from '@/lib/models/Expense';
 import { requireHouseholdMember, requireSession } from '@/lib/permissions';
 import { expenseInputSchema } from '@/lib/validators';
 import { toMoney } from '@/lib/utils';
@@ -10,7 +10,7 @@ export async function GET(_: NextRequest, { params }: { params: { householdId: s
     const session = await requireSession();
     await connectDb();
     await requireHouseholdMember(params.householdId, session.user.id);
-    const expenses = await Expense.find({ householdId: params.householdId }).sort({ date: -1 }).lean();
+    const expenses = await Expense.find({ householdId: params.householdId }).sort({ date: -1 }).lean<(ExpenseDoc & { _id: unknown })[]>();
     return NextResponse.json(expenses);
   } catch {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

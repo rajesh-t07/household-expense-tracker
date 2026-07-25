@@ -1,7 +1,8 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
+import { Types } from 'mongoose';
 import { connectDb } from './db';
-import { User } from './models/User';
+import { User, type UserDoc } from './models/User';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -25,7 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session }) {
       if (session.user?.email) {
         await connectDb();
-        const dbUser = await User.findOne({ email: session.user.email }).lean();
+        const dbUser = await User.findOne({ email: session.user.email }).lean<(UserDoc & { _id: Types.ObjectId }) | null>();
         if (dbUser) {
           session.user.id = dbUser._id.toString();
         }

@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { auth } from './auth';
 import { Household } from './models/Household';
 
@@ -11,7 +12,7 @@ export async function requireSession() {
 
 export async function requireHouseholdMember(householdId: string, userId: string) {
   const household = await Household.findById(householdId);
-  if (!household || !household.members.some((member) => member.toString() === userId)) {
+  if (!household || !household.members.some((member: Types.ObjectId) => member.toString() === userId)) {
     throw new Error('Forbidden');
   }
   return household;

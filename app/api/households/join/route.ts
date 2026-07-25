@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Types } from 'mongoose';
 import { connectDb } from '@/lib/db';
 import { requireSession } from '@/lib/permissions';
 import { Household } from '@/lib/models/Household';
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
     await connectDb();
     const household = await Household.findOne({ inviteToken: token });
     if (!household) return NextResponse.json({ error: 'Invalid invite token' }, { status: 404 });
-    if (!household.members.some((member) => member.toString() === session.user.id)) {
+    if (!household.members.some((member: Types.ObjectId) => member.toString() === session.user.id)) {
       household.members.push(session.user.id);
       await household.save();
     }

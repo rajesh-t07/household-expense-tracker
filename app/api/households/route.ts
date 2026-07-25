@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/lib/db';
 import { householdSchema } from '@/lib/validators';
 import { requireSession } from '@/lib/permissions';
-import { Household } from '@/lib/models/Household';
+import { Household, type HouseholdDoc } from '@/lib/models/Household';
 import { createInviteToken } from '@/lib/utils';
 
 export async function GET() {
   try {
     const session = await requireSession();
     await connectDb();
-    const households = await Household.find({ members: session.user.id }).sort({ createdAt: -1 }).lean();
+    const households = await Household.find({ members: session.user.id }).sort({ createdAt: -1 }).lean<(HouseholdDoc & { _id: unknown })[]>();
     return NextResponse.json(households);
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

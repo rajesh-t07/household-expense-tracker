@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stringify } from 'csv-stringify/sync';
 import { connectDb } from '@/lib/db';
-import { Expense } from '@/lib/models/Expense';
+import { Expense, type ExpenseDoc } from '@/lib/models/Expense';
 import { requireHouseholdMember, requireSession } from '@/lib/permissions';
 
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     await connectDb();
     await requireHouseholdMember(householdId, session.user.id);
-    const expenses = await Expense.find({ householdId, date: { $gte: start, $lt: end } }).lean();
+    const expenses = await Expense.find({ householdId, date: { $gte: start, $lt: end } }).lean<(ExpenseDoc & { _id: unknown })[]>();
 
     const csv = stringify(
       expenses.map((expense) => ({

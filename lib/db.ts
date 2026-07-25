@@ -16,7 +16,7 @@ export async function connectDb() {
     return cached.conn;
   }
   if (!cached?.promise) {
-    cached!.promise = mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'household-tracker' });
+    cached!.promise = mongoose.connect(MONGODB_URI!, { dbName: process.env.MONGODB_DB || 'household-tracker' });
   }
   cached!.conn = await cached!.promise;
   return cached!.conn;
