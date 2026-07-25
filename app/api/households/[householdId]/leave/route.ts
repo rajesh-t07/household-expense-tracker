@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { connectDb } from '@/lib/db';
+import { AuthError } from '@/lib/errors';
 import { requireSession } from '@/lib/permissions';
 import { Household } from '@/lib/models/Household';
 
@@ -31,9 +32,8 @@ export async function POST(_: NextRequest, { params }: { params: { householdId: 
     await household.save();
     return NextResponse.json(household);
   } catch (err) {
-    const message = err instanceof Error ? err.message : '';
-    if (message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
     }
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

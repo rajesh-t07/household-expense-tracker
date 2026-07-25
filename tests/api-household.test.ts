@@ -6,6 +6,8 @@ import { Types } from 'mongoose';
 // (Household.createdBy and Household.members both use `ref: 'User'`).
 import '@/lib/models/User';
 
+import { ForbiddenError, UnauthorizedError } from '@/lib/errors';
+
 // Mock the permissions module BEFORE importing the route so route.ts sees the mock.
 vi.mock('@/lib/permissions', () => ({
   requireSession: vi.fn(),
@@ -41,7 +43,7 @@ function makeRequest(householdId: string): Request {
 
 describe('GET /api/households/[householdId]', () => {
   it('returns 401 when requireSession throws Unauthorized', async () => {
-    vi.mocked(requireSession).mockRejectedValue(new Error('Unauthorized'));
+    vi.mocked(requireSession).mockRejectedValue(new UnauthorizedError());
 
     const res = await getHousehold(makeRequest('abc') as any, { params: { householdId: 'abc' } });
 
@@ -53,7 +55,7 @@ describe('GET /api/households/[householdId]', () => {
 
   it('returns 403 when requireHouseholdMember throws Forbidden', async () => {
     vi.mocked(requireSession).mockResolvedValue({ user: { id: 'user-1' } } as any);
-    vi.mocked(requireHouseholdMember).mockRejectedValue(new Error('Forbidden'));
+    vi.mocked(requireHouseholdMember).mockRejectedValue(new ForbiddenError());
 
     const res = await getHousehold(makeRequest('hh-that-misses') as any, {
       params: { householdId: 'hh-that-misses' }
@@ -92,6 +94,7 @@ describe('GET /api/households/[householdId]', () => {
   });
 
   it('returns 500 on unexpected errors (not Unauthorized or Forbidden)', async () => {
+    // Plain Error (not AuthError subclass) — verifies the catch falls through to 500.
     vi.mocked(requireSession).mockRejectedValue(new Error('Something exploded'));
 
     const res = await getHousehold(makeRequest('abc') as any, { params: { householdId: 'abc' } });

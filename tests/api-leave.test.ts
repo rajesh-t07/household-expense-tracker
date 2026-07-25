@@ -7,6 +7,7 @@ vi.mock('@/lib/permissions', () => ({
 }));
 
 import { POST as leaveHousehold } from '@/app/api/households/[householdId]/leave/route';
+import { UnauthorizedError } from '@/lib/errors';
 import { requireSession } from '@/lib/permissions';
 import { Household } from '@/lib/models/Household';
 
@@ -32,7 +33,7 @@ function makeLeaveRequest(householdId: string): Request {
 
 describe('POST /api/households/[householdId]/leave', () => {
   it('returns 401 when requireSession throws Unauthorized', async () => {
-    vi.mocked(requireSession).mockRejectedValue(new Error('Unauthorized'));
+    vi.mocked(requireSession).mockRejectedValue(new UnauthorizedError());
 
     const res = await leaveHousehold(makeLeaveRequest('abc') as any, {
       params: { householdId: 'abc' }
