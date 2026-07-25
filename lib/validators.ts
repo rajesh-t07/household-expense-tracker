@@ -73,3 +73,31 @@ export const chatStateSchema = z.object({
     })
   )
 });
+
+/**
+ * Discriminated union for the household settings PATCH endpoint.
+ * Each variant maps to a single mutation on the household document.
+ * Permission enforcement (creator-only checks, sole-member guards) happens
+ * in the route handler — this schema only validates the shape of the payload.
+ */
+export const settingsActionSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('rename'),
+    name: z.string().min(2).max(80)
+  }),
+  z.object({
+    action: z.literal('update-currency'),
+    currency: z
+      .string()
+      .min(1)
+      .max(8)
+      .regex(/^[A-Za-z]{1,8}$/, 'Currency must be letters only (e.g. USD, EUR, JPY)')
+  }),
+  z.object({
+    action: z.literal('regenerate-token')
+  }),
+  z.object({
+    action: z.literal('remove-member'),
+    memberId: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid member id')
+  })
+]);

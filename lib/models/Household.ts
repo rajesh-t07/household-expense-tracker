@@ -8,7 +8,7 @@ const householdSchema = new Schema(
     members: [{ type: Schema.Types.ObjectId, ref: 'User', required: true }],
     inviteToken: { type: String, required: true, index: true }
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: true }
 );
 
 householdSchema.methods.hasMember = function hasMember(userId: Types.ObjectId) {
