@@ -101,3 +101,12 @@ export const settingsActionSchema = z.discriminatedUnion('action', [
     memberId: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid member id')
   })
 ]);
+
+/**
+ * Schema for POST /api/users/me/last-household.
+ * Sets a server-side httpOnly cookie that remembers the user's last-visited
+ * household. The route handler verifies membership before persisting.
+ */
+export const lastHouseholdSchema = z.object({
+  householdId: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid household id')
+});
