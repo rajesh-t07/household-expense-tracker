@@ -17,6 +17,10 @@ export default function HouseholdsPage() {
   };
 
   useEffect(() => {
+    // Auto-fill the Join form when arriving via /households?invite=<token>
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get('invite');
+    if (invite) setInviteToken(invite);
     load();
   }, []);
 

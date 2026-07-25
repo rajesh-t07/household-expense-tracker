@@ -3,7 +3,7 @@ import { User } from '../lib/models/User';
 import { Household } from '../lib/models/Household';
 import { Expense } from '../lib/models/Expense';
 
-async function main() {
+export async function seed() {
   await connectDb();
   const user = await User.findOneAndUpdate(
     { email: 'demo@example.com' },
@@ -31,11 +31,19 @@ async function main() {
       { name: 'Produce', quantity: 1, unitPrice: 40.5, lineTotal: 40.5 }
     ]
   });
-  console.log('Seeded demo data.');
-  process.exit(0);
+  return { user, household };
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// CLI entry point: only run when invoked directly (not when imported by tests)
+const isMainModule = typeof process !== 'undefined' && process.argv[1]?.endsWith('seed.ts');
+if (isMainModule) {
+  seed()
+    .then(() => {
+      console.log('Seeded demo data.');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
+}
