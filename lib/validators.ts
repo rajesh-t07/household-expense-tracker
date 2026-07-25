@@ -44,3 +44,32 @@ export const expenseInputSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['items'], message: 'At least one item is required for itemized mode' });
     }
   });
+
+export const chatStateSchema = z.object({
+  step: z.enum(['month', 'mode', 'merchant', 'category', 'amount', 'tax', 'confirm']),
+  draft: z
+    .object({
+      date: z.string().optional(),
+      mode: z.enum(['simple', 'itemized']).optional(),
+      merchant: z.string().optional(),
+      category: z.string().optional(),
+      simpleTotal: z.number().min(0).optional(),
+      taxTotal: z.number().min(0).optional(),
+      items: z
+        .array(
+          z.object({
+            name: z.string().min(1),
+            quantity: z.number().int().min(1),
+            unitPrice: z.number().min(0)
+          })
+        )
+        .optional()
+    })
+    .passthrough(),
+  messages: z.array(
+    z.object({
+      role: z.enum(['assistant', 'user']),
+      text: z.string().max(2000)
+    })
+  )
+});

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/lib/db';
 import { requireHouseholdMember, requireSession } from '@/lib/permissions';
 import { ConversationState } from '@/lib/models/ConversationState';
+import { chatStateSchema } from '@/lib/validators';
 
 const initialMessages = [
   { role: 'assistant', text: 'Welcome! Let’s set up your household expense tracker.' },
@@ -35,12 +36,16 @@ export async function POST(request: NextRequest, { params }: { params: { househo
     await connectDb();
     await requireHouseholdMember(params.householdId, session.user.id);
     const body = await request.json();
+    const parsed = chatStateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid chat state', issues: parsed.error.issues }, { status: 422 });
+    }
     const state = await ConversationState.findOneAndUpdate(
       { householdId: params.householdId, userId: session.user.id },
       {
-        step: body.step,
-        draft: body.draft,
-        messages: body.messages
+        step: parsed.data.step,
+        draft: parsed.data.draft,
+        messages: parsed.data.messages
       },
       { upsert: true, new: true }
     );

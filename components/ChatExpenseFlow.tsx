@@ -27,14 +27,14 @@ function promptFor(step: Step, mode: Draft['mode']) {
   return 'Ready to save this expense?';
 }
 
-export function ChatExpenseFlow({ householdId }: { householdId: string }) {
+export function ChatExpenseFlow({ householdId, userId }: { householdId: string; userId: string }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [step, setStep] = useState<Step>('month');
   const [draft, setDraft] = useState<Draft>({ date: new Date().toISOString().slice(0, 10), mode: 'simple' });
   const [input, setInput] = useState('');
 
   useEffect(() => {
-    const local = localStorage.getItem(`chat:${householdId}`);
+    const local = localStorage.getItem(`chat:${householdId}:${userId}`);
     if (local) {
       try {
         const parsed = JSON.parse(local);
@@ -42,7 +42,7 @@ export function ChatExpenseFlow({ householdId }: { householdId: string }) {
         setStep(parsed.step || 'month');
         setDraft(parsed.draft || { date: new Date().toISOString().slice(0, 10), mode: 'simple' });
       } catch {
-        localStorage.removeItem(`chat:${householdId}`);
+        localStorage.removeItem(`chat:${householdId}:${userId}`);
       }
     }
 
@@ -64,8 +64,8 @@ export function ChatExpenseFlow({ householdId }: { householdId: string }) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ step, draft, messages })
     });
-    localStorage.setItem(`chat:${householdId}`, JSON.stringify({ step, draft, messages }));
-  }, [draft, householdId, messages, step]);
+    localStorage.setItem(`chat:${householdId}:${userId}`, JSON.stringify({ step, draft, messages }));
+  }, [draft, householdId, userId, messages, step]);
 
   const prompt = useMemo(() => promptFor(step, draft.mode), [step, draft.mode]);
 
@@ -99,20 +99,38 @@ export function ChatExpenseFlow({ householdId }: { householdId: string }) {
       setStep(nextStep);
     } else if (step === 'amount') {
       if (draft.mode === 'itemized') {
-        const items = trimmed
-          .split(';')
-          .map((raw) => {
-            const [name, qty, price] = raw.split(',');
-            return {
-              name: (name || '').trim(),
-              quantity: Number(qty),
-              unitPrice: Number(price)
-            };
-          })
-          .filter((item) => item.name && Number.isFinite(item.quantity) && item.quantity >= 1 && Number.isFinite(item.unitPrice) && item.unitPrice >= 0);
-        setDraft((d) => ({ ...d, items }));
+        const rawItems = trimmed.split(';');
+        const parsedItems = rawItems.map((raw) => {
+          const [name, qty, price] = raw.split(',');
+          return {
+            name: (name || '').trim(),
+            quantity: Number(qty),
+            unitPrice: Number(price)
+          };
+        });
+        const validItems = parsedItems.filter(
+          (item) =>
+            item.name &&
+            Number.isInteger(item.quantity) &&
+            item.quantity >= 1 &&
+            Number.isFinite(item.unitPrice) &&
+            item.unitPrice >= 0
+        );
+        if (validItems.length === 0 || validItems.length !== rawItems.length) {
+          append(
+            'assistant',
+            'Invalid item format. Use "Name,Qty(integer),Price" separated by semicolons. Example: Apples,2,4.50; Milk,1,3.00'
+          );
+          return;
+        }
+        setDraft((d) => ({ ...d, items: validItems }));
       } else {
-        setDraft((d) => ({ ...d, simpleTotal: Number(trimmed) }));
+        const val = Number(trimmed);
+        if (!Number.isFinite(val) || val < 0) {
+          append('assistant', 'Please enter a valid subtotal amount (>= 0).');
+          return;
+        }
+        setDraft((d) => ({ ...d, simpleTotal: val }));
       }
       nextStep = 'tax';
       setStep(nextStep);
