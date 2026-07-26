@@ -27,9 +27,10 @@ function isCreator(
 }
 
 function buildResponse(household: any, userId: string) {
+  const role = household.roles?.get?.(userId) || 'member';
   return {
     ...household.toObject(),
-    myRole: isCreator(household, userId) ? 'admin' : 'member'
+    myRole: isCreator(household, userId) ? 'admin' : role
   };
 }
 

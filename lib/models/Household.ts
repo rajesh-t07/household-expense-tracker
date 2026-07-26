@@ -6,6 +6,7 @@ const householdSchema = new Schema(
     currency: { type: String, default: 'USD' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     members: [{ type: Schema.Types.ObjectId, ref: 'User', required: true, index: true }],
+    roles: { type: Map, of: String, default: {} },
     inviteToken: { type: String, required: true, index: true }
   },
   { timestamps: true }

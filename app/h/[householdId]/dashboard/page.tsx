@@ -163,6 +163,18 @@ export default function DashboardPage({ params }: { params: { householdId: strin
         >
           Add expense in chat
         </Link>
+        <Link
+          className="rounded border px-3 py-2"
+          href={`/h/${params.householdId}/members`}
+        >
+          Members
+        </Link>
+        <Link
+          className="rounded border px-3 py-2"
+          href={`/h/${params.householdId}/settings`}
+        >
+          Settings
+        </Link>
       </div>
 
       {hasActiveFilters && (

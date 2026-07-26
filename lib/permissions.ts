@@ -18,3 +18,14 @@ export async function requireHouseholdMember(householdId: string, userId: string
   }
   return household;
 }
+
+export async function requireAdmin(householdId: string, userId: string) {
+  const household = await requireHouseholdMember(householdId, userId);
+  const role = household.roles?.get(userId);
+  // createdBy is always an admin; fall back to 'member' if no role is stored
+  const isCreator = household.createdBy?.toString() === userId;
+  if (!isCreator && role !== 'admin') {
+    throw new ForbiddenError('Admin access required');
+  }
+  return household;
+}
