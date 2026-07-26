@@ -65,7 +65,10 @@ export const expenseInputSchema = expenseInputBaseSchema.superRefine(
 export const expenseEditSchema = expenseInputBaseSchema
   .pick({ merchant: true, category: true, notes: true })
   .partial()
-  .merge(z.object({ simpleTotal: z.number().min(0).optional() }));
+  .merge(z.object({
+    simpleTotal: z.number().min(0).optional(),
+    receiptUrl: z.string().url().optional().nullable()
+  }));
 
 export const chatStateSchema = z.object({
   step: z.enum(['month', 'mode', 'merchant', 'category', 'amount', 'tax', 'confirm']),

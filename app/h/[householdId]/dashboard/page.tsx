@@ -4,6 +4,18 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { filterExpenses } from '@/lib/filter-expenses';
 import { categories } from '@/lib/validators';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid
+} from 'recharts';
 
 const SORT_OPTIONS = [
   { value: 'date-desc', label: 'Date ↓' },
@@ -14,8 +26,16 @@ const SORT_OPTIONS = [
   { value: 'merchant-desc', label: 'Merchant Z–A' }
 ] as const;
 
+const CHART_COLORS = [
+  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
+  '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'
+];
+
 export default function DashboardPage({ params }: { params: { householdId: string } }) {
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
+
+  // Filter state
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -30,7 +50,7 @@ export default function DashboardPage({ params }: { params: { householdId: strin
     });
   }, [params.householdId]);
 
-  // Derive unique members from the expense data for the member picker.
+  // Derive unique members from the expense data for the member picker
   const members = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>();
     for (const e of expenses) {
@@ -57,10 +77,35 @@ export default function DashboardPage({ params }: { params: { householdId: strin
   );
 
   const total = filtered.reduce((sum, e) => sum + e.total, 0);
-  const categoryMap = filtered.reduce((acc: Record<string, number>, e) => {
-    acc[e.category] = (acc[e.category] || 0) + e.total;
-    return acc;
-  }, {});
+
+  // Category breakdown for pie chart
+  const categoryData = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const e of filtered) {
+      map[e.category] = (map[e.category] || 0) + e.total;
+    }
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+      .sort((a, b) => b.value - a.value);
+  }, [filtered]);
+
+  // Monthly trend for bar chart (last 6 months)
+  const monthlyTrend = useMemo(() => {
+    const now = new Date();
+    const months: { label: string; key: string; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = d.toISOString().slice(0, 7);
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      months.push({ label, key, total: 0 });
+    }
+    for (const e of expenses) {
+      const dateStr = new Date(e.date).toISOString().slice(0, 7);
+      const found = months.find((m) => m.key === dateStr);
+      if (found) found.total += e.total;
+    }
+    return months.map((m) => ({ ...m, total: Math.round(m.total * 100) / 100 }));
+  }, [expenses]);
 
   const hasActiveFilters = !!(categoryFilter || memberFilter || search || dateFrom || dateTo);
   const activeLabels: string[] = [];
@@ -184,47 +229,143 @@ export default function DashboardPage({ params }: { params: { householdId: strin
         </p>
       )}
 
-      <section className="mt-5 grid gap-4 md:grid-cols-2">
+      {/* Summary cards */}
+      <section className="mt-5 grid gap-4 md:grid-cols-3">
         <div className="rounded border bg-white p-4">
           <p className="text-slate-500">Monthly total</p>
           <p className="text-3xl font-bold">${total.toFixed(2)}</p>
         </div>
+
+        {/* Category pie chart */}
         <div className="rounded border bg-white p-4">
-          <p className="mb-2 text-slate-500">Category breakdown</p>
-          <ul className="text-sm">
-            {Object.entries(categoryMap).map(([category, value]) => (
-              <li key={category} className="flex justify-between">
-                <span>{category}</span>
-                <span>${(value as number).toFixed(2)}</span>
-              </li>
-            ))}
-          </ul>
+          <p className="mb-2 text-slate-500">By category</p>
+          {categoryData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={75}
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {categoryData.map((_, idx) => (
+                    <Cell
+                      key={idx}
+                      fill={CHART_COLORS[idx % CHART_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Amount']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="py-8 text-center text-sm text-slate-400">No data</p>
+          )}
+        </div>
+
+        {/* Monthly trend bar chart */}
+        <div className="rounded border bg-white p-4">
+          <p className="mb-2 text-slate-500">Monthly trend</p>
+          {monthlyTrend.some((m) => m.total > 0) ? (
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={monthlyTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis hide />
+                <Tooltip
+                  formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Total']}
+                />
+                <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="py-8 text-center text-sm text-slate-400">No data</p>
+          )}
         </div>
       </section>
 
+      {/* Expenses list */}
       <section className="mt-5 rounded border bg-white p-4">
-        <h2 className="mb-3 font-semibold">Expenses</h2>
+        <h2 className="mb-3 font-semibold">
+          Expenses ({filtered.length})
+        </h2>
         <ul className="space-y-2 text-sm">
           {filtered.map((expense) => (
             <li
               key={expense._id}
-              className="flex items-center justify-between rounded border p-2"
+              className="rounded border p-2 transition-colors hover:bg-slate-50"
             >
-              <div>
-                <p className="font-medium">{expense.merchant}</p>
-                <p className="text-slate-500">
-                  {new Date(expense.date).toLocaleDateString()} · {expense.category}
-                </p>
+              <div
+                className="flex cursor-pointer items-center justify-between"
+                onClick={() =>
+                  setExpandedExpense(
+                    expandedExpense === expense._id ? null : expense._id
+                  )
+                }
+              >
+                <div className="flex items-center gap-3">
+                  {expense.receiptUrl ? (
+                    <img
+                      src={expense.receiptUrl}
+                      alt=""
+                      className="h-8 w-8 flex-shrink-0 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 flex-shrink-0 rounded border bg-slate-50" />
+                  )}
+                  <div>
+                    <p className="font-medium">{expense.merchant}</p>
+                    <p className="text-slate-500">
+                      {new Date(expense.date).toLocaleDateString()} · {expense.category}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span>${expense.total?.toFixed(2)}</span>
+                  <Link
+                    className="rounded border px-2 py-1 text-xs"
+                    href={`/h/${params.householdId}/expenses/${expense._id}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    View
+                  </Link>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span>${expense.total.toFixed(2)}</span>
-                <Link
-                  className="rounded border px-2 py-1"
-                  href={`/h/${params.householdId}/expenses/${expense._id}`}
-                >
-                  View
-                </Link>
-              </div>
+
+              {/* Expandable details */}
+              {expandedExpense === expense._id && (
+                <div className="mt-2 border-t pt-2 text-xs text-slate-600">
+                  {expense.notes && <p className="mb-1 italic">{expense.notes}</p>}
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
+                    <span>Subtotal: ${expense.subtotal?.toFixed(2)}</span>
+                    <span>Tax: ${expense.taxTotal?.toFixed(2)}</span>
+                    {expense.items?.length > 0 && (
+                      <span>{expense.items.length} item(s)</span>
+                    )}
+                    {expense.receiptUrl && (
+                      <a
+                        href={expense.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View receipt ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>
