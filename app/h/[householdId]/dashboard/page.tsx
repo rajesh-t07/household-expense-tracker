@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { filterExpenses } from '@/lib/filter-expenses';
 import { categories } from '@/lib/validators';
 
 const SORT_OPTIONS = [
@@ -12,15 +13,6 @@ const SORT_OPTIONS = [
   { value: 'merchant-asc', label: 'Merchant A–Z' },
   { value: 'merchant-desc', label: 'Merchant Z–A' }
 ] as const;
-
-const SORT_FN: Record<string, (a: any, b: any) => number> = {
-  'date-desc': (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  'date-asc': (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  'amount-desc': (a, b) => b.total - a.total,
-  'amount-asc': (a, b) => a.total - b.total,
-  'merchant-asc': (a, b) => a.merchant.localeCompare(b.merchant),
-  'merchant-desc': (a, b) => b.merchant.localeCompare(a.merchant)
-};
 
 export default function DashboardPage({ params }: { params: { householdId: string } }) {
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -50,54 +42,19 @@ export default function DashboardPage({ params }: { params: { householdId: strin
     return [...map.values()];
   }, [expenses]);
 
-  const filtered = useMemo(() => {
-    let result = [...expenses];
-
-    // Month filter
-    result = result.filter((e) => new Date(e.date).toISOString().startsWith(month));
-
-    // Date range filter (overrides month)
-    if (dateFrom) {
-      const from = new Date(dateFrom);
-      if (!isNaN(from.getTime())) {
-        result = result.filter((e) => new Date(e.date) >= from);
-      }
-    }
-    if (dateTo) {
-      const to = new Date(dateTo);
-      to.setUTCHours(23, 59, 59, 999);
-      if (!isNaN(to.getTime())) {
-        result = result.filter((e) => new Date(e.date) <= to);
-      }
-    }
-
-    // Category filter
-    if (categoryFilter) {
-      result = result.filter((e) => e.category === categoryFilter);
-    }
-
-    // Member filter
-    if (memberFilter) {
-      result = result.filter((e) => {
-        const u = e.createdByUserId;
-        return u && typeof u === 'object' && u._id
-          ? u._id === memberFilter || u._id.toString() === memberFilter
-          : u?.toString() === memberFilter;
-      });
-    }
-
-    // Merchant search
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter((e) => e.merchant.toLowerCase().includes(q));
-    }
-
-    // Sort
-    const fn = SORT_FN[sort] ?? SORT_FN['date-desc'];
-    result.sort(fn);
-
-    return result;
-  }, [expenses, month, dateFrom, dateTo, categoryFilter, memberFilter, search, sort]);
+  const filtered = useMemo(
+    () =>
+      filterExpenses(expenses, {
+        month,
+        dateFrom,
+        dateTo,
+        category: categoryFilter,
+        memberFilter,
+        search,
+        sort
+      }),
+    [expenses, month, dateFrom, dateTo, categoryFilter, memberFilter, search, sort]
+  );
 
   const total = filtered.reduce((sum, e) => sum + e.total, 0);
   const categoryMap = filtered.reduce((acc: Record<string, number>, e) => {
@@ -193,7 +150,9 @@ export default function DashboardPage({ params }: { params: { householdId: strin
 
         <a
           className="rounded border px-3 py-2"
-          href={`/api/export/monthly?householdId=${params.householdId}&month=${month}`}
+          href={`/api/export/monthly?householdId=${params.householdId}&month=${month}${
+            categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''
+          }${dateFrom ? `&from=${dateFrom}` : ''}${dateTo ? `&to=${dateTo}` : ''}`}
         >
           Export CSV
         </a>
